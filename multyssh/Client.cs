@@ -15,37 +15,60 @@ namespace multyssh
         public string UserName;
         public string Password;
 
-        StreamReader reader;
+        Thread thr;
         Stream sshStream;
-        bool readResponse = false;
+
+        int lastRead = Environment.TickCount;
+
         public bool ShowResponse { get; set; }
+
+        public bool EndOfStream
+        {
+            get
+            {
+                var delta = Environment.TickCount - lastRead;
+                if (delta >= 1000) return true;
+                else
+                    return false;
+            }
+        }
         public Client(string host,string username, string password)
         {
             this.Host = host;
             this.UserName = username;
             this.Password = password;
 
+            ShowResponse = true;
+
             shell = new SshShell(this.Host, this.UserName, this.Password);
 
-            readResponse = true;
-
-            ShowResponse = false;
-
-            //writer = new StreamWriter(ms);
-            new Thread(Read).Start();
+            thr = new Thread(Read);
 
         }
         public void Connect()
         {
             try
             {
-                shell.Connect();
+                shell.Connect(); 
                 sshStream = shell.GetStream();
-                reader = new StreamReader(sshStream);
+                thr.Start();
             }
             catch (Exception ee)
             {
                 Console.WriteLine(ee.Message);
+            }
+        }
+        public void Disconnect()
+        {
+            if(thr!=null)
+            {
+                thr.Abort();
+                thr = null; 
+            }
+
+            if(shell!=null)
+            {
+                shell.Close();
             }
         }
         byte[] buffer = new byte[1024];
@@ -53,32 +76,37 @@ namespace multyssh
         {
             while (true)
             {
-                if (reader == null)
+                if (!shell.ShellOpened)
                 {
-                    Thread.Sleep(1);
-                    continue;
+                    Thread.Sleep(1); continue;
                 }
-
-                var count = sshStream.Read(buffer, 0, buffer.Length);
-
-                if (count >0)
+                int count = 0;
+                lock (sshStream)
                 {
-                    Console.Write(Encoding.ASCII.GetString(buffer,0,count));
-                } 
+                    count = sshStream.Read(buffer, 0, buffer.Length);
+                }
+                 
+                if (count > 0)
+                {
+                    lastRead = Environment.TickCount;
+                   
+                    if(ShowResponse)
+                    {
+                        var text = Encoding.ASCII.GetString(buffer, 0, count);
+                        Console.Write(text);
 
-                //readResponse = false;
+                    }
+                }  
             }
         }
 
         public void SendCommand(string cmd)
-        {
-            //writer.WriteLine(cmd);
-            //shell.WriteLine(cmd);
-
-            byte[] buf = Encoding.ASCII.GetBytes(cmd);
-            sshStream.Write(buf, 0, buf.Length);
-
-            //readResponse = true;
+        { 
+            byte[] buf = Encoding.ASCII.GetBytes(cmd + "\n");
+            lock(sshStream)
+            {
+                sshStream.Write(buf, 0, buf.Length); 
+            }
         }
     }
 }
