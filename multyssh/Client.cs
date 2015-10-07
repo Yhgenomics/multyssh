@@ -72,8 +72,12 @@ namespace multyssh
                 thr = null; 
             }
 
+            
+
             if(shell!=null)
             {
+                sshStream.Close();
+
                 shell.Close();
             }
         }
@@ -87,31 +91,30 @@ namespace multyssh
                     Thread.Sleep(1); continue;
                 }
                 int count = 0;
-                lock (sshStream)
-                {
-                    count = sshStream.Read(buffer, 0, buffer.Length);
-                }
-                 
+
+                count = sshStream.Read(buffer, 0, buffer.Length);
+
                 if (count > 0)
                 {
                     this.CanSendCommand = false;
 
                     lastRead = Environment.TickCount;
-                   
-                    if(ShowResponse)
+
+                    var text = Encoding.ASCII.GetString(buffer, 0, count);
+
+                    var lines = text.Split('\n');
+
+                    foreach (var l in lines)
                     {
-                        var text = Encoding.ASCII.GetString(buffer, 0, count);
-
-                        var lines = text.Split('\n');
-
-                        foreach (var l in lines)
+                        if (l.StartsWith(this.shell.Username) && l.EndsWith("# "))
                         {
-                            if(l.StartsWith(this.shell.Username) && l.EndsWith("# "))
-                            {
-                                this.CanSendCommand = true;
-                            }
+                            this.CanSendCommand = true;
+                            break;
                         }
-                        
+                    }
+
+                    if (ShowResponse)
+                    {
                         Console.Write(text); 
                     }
                 }  

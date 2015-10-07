@@ -4,5 +4,3 @@
 10.0.0.206 root YH!@#$%12345
 10.0.0.211 root YH!@#$%12345
 10.0.0.201 root YH!@#$%12345
-
-sh apt-get -y install bwa samtools
