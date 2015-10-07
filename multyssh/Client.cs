@@ -27,10 +27,15 @@ namespace multyssh
             get
             {
                 var delta = Environment.TickCount - lastRead;
-                if (delta >= 1000) return true;
+                if (delta >= 2000) return true;
                 else
                     return false;
             }
+        }
+        public bool CanSendCommand
+        {
+            get;
+            private set;
         }
         public Client(string host,string username, string password)
         {
@@ -39,6 +44,7 @@ namespace multyssh
             this.Password = password;
 
             ShowResponse = true;
+            CanSendCommand = true;
 
             shell = new SshShell(this.Host, this.UserName, this.Password);
 
@@ -88,13 +94,25 @@ namespace multyssh
                  
                 if (count > 0)
                 {
+                    this.CanSendCommand = false;
+
                     lastRead = Environment.TickCount;
                    
                     if(ShowResponse)
                     {
                         var text = Encoding.ASCII.GetString(buffer, 0, count);
-                        Console.Write(text);
 
+                        var lines = text.Split('\n');
+
+                        foreach (var l in lines)
+                        {
+                            if(l.StartsWith(this.shell.Username) && l.EndsWith("# "))
+                            {
+                                this.CanSendCommand = true;
+                            }
+                        }
+                        
+                        Console.Write(text); 
                     }
                 }  
             }
@@ -103,6 +121,7 @@ namespace multyssh
         public void SendCommand(string cmd)
         { 
             byte[] buf = Encoding.ASCII.GetBytes(cmd + "\n");
+            while (sshStream == null) ;
             lock(sshStream)
             {
                 sshStream.Write(buf, 0, buf.Length); 

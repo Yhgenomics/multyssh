@@ -67,24 +67,34 @@ namespace multyssh
         {
             foreach (var client in clients)
             {
-                Client cli = new Client(client.ip, client.username, client.password);
-                cli.ShowResponse = false;
-                cli.Connect();
-
-                Console.WriteLine(client.ip + " Running...");
-
-                foreach (var cmd in command)
+                try
                 {
-                    cli.SendCommand(cmd);
+                    Client cli = new Client(client.ip, client.username, client.password);
+                    cli.ShowResponse = true;
+                    cli.Connect();
+
+                    Console.WriteLine();
+                    Console.WriteLine(client.ip + " Running...");
+
+                    foreach (var cmd in command)
+                    {
+                        while (!cli.CanSendCommand) Thread.Sleep(1);
+                        cli.SendCommand(cmd);
+                    }
+
+                    while (!cli.EndOfStream) Thread.Sleep(1); 
+
+                    cli.Disconnect();
+
+                    Console.WriteLine();
+                    Console.WriteLine(client.ip + " Finished...");
+                }
+                catch(Exception eee)
+                {
+                    Console.WriteLine(client.ip + " Exception: "+eee.Message);
                 }
 
-                while (!cli.EndOfStream)
-                {
-                    Thread.Sleep(1);
-                }
-
-                cli.Disconnect();
-                Console.WriteLine(client.ip + " Finished...");
+                
 
             }
         }
