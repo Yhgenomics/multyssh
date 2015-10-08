@@ -1,5 +1,7 @@
-﻿using System;
+﻿using Renci.SshNet;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -8,7 +10,7 @@ using Tamir.SharpSsh;
 
 namespace multyssh
 {
-    class Client
+    class Client : IClient
     {
         SshShell shell;
         public string Host;
@@ -18,16 +20,20 @@ namespace multyssh
         Thread thr;
         Stream sshStream;
 
+        Renci.SshNet.SshClient sshClient;
+
         int lastRead = Environment.TickCount;
 
         public bool ShowResponse { get; set; }
+
+        ManualResetEvent evt = new ManualResetEvent(true);
 
         public bool EndOfStream
         {
             get
             {
                 var delta = Environment.TickCount - lastRead;
-                if (delta >= 2000) return true;
+                if (delta >= 5000) return true;
                 else
                     return false;
             }
@@ -43,8 +49,12 @@ namespace multyssh
             this.UserName = username;
             this.Password = password;
 
+            //sshClient.ConnectionInfo.Username = "root";
+            sshClient.Connect();
+
             ShowResponse = true;
-            CanSendCommand = true;
+
+            evt.Reset();
 
             shell = new SshShell(this.Host, this.UserName, this.Password);
 
@@ -55,7 +65,11 @@ namespace multyssh
         {
             try
             {
-                shell.Connect(); 
+                shell.Connect();
+                while (!shell.Connected) Thread.Sleep(1);
+                while (!shell.ShellOpened) Thread.Sleep(1);
+                while (!shell.ShellConnected) Thread.Sleep(1);
+                
                 sshStream = shell.GetStream();
                 thr.Start();
             }
@@ -70,9 +84,7 @@ namespace multyssh
             {
                 thr.Abort();
                 thr = null; 
-            }
-
-            
+            } 
 
             if(shell!=null)
             {
@@ -81,54 +93,50 @@ namespace multyssh
                 shell.Close();
             }
         }
-        byte[] buffer = new byte[1024];
+        byte[] buffer = new byte[10240];
         void Read()
         {
             while (true)
             {
-                if (!shell.ShellOpened)
-                {
-                    Thread.Sleep(1); continue;
-                }
                 int count = 0;
 
                 count = sshStream.Read(buffer, 0, buffer.Length);
 
-                if (count > 0)
+                lastRead = Environment.TickCount;
+
+                var text = Encoding.ASCII.GetString(buffer, 0, count);
+                Console.WriteLine(text);
+                var lines = text.Split(new string[] {"\r\n" },StringSplitOptions.RemoveEmptyEntries);
+                 
+                if (ShowResponse)
                 {
-                    this.CanSendCommand = false;
+                    Console.Write(text);
+                }
 
-                    lastRead = Environment.TickCount;
-
-                    var text = Encoding.ASCII.GetString(buffer, 0, count);
-
-                    var lines = text.Split('\n');
-
-                    foreach (var l in lines)
+                foreach (var l in lines)
+                {
+                    if (l.StartsWith(this.shell.Username) && (l.EndsWith("# ") || l.EndsWith("#")))
                     {
-                        if (l.StartsWith(this.shell.Username) && l.EndsWith("# "))
-                        {
-                            this.CanSendCommand = true;
-                            break;
-                        }
+                        evt.Set();
+                        break;
                     }
-
-                    if (ShowResponse)
-                    {
-                        Console.Write(text); 
-                    }
-                }  
+                }
             }
         }
 
         public void SendCommand(string cmd)
-        { 
+        {
+            evt.Reset();
             byte[] buf = Encoding.ASCII.GetBytes(cmd + "\n");
-            while (sshStream == null) ;
-            lock(sshStream)
-            {
-                sshStream.Write(buf, 0, buf.Length); 
-            }
+           // while (sshStream == null) Thread.Sleep(0);
+            sshStream.Write(buf, 0, buf.Length);
+           // sshStream.Flush();
+            Console.WriteLine("Run: " + cmd);
+        }
+
+        public void WaitForIdle()
+        {
+            evt.WaitOne();
         }
     }
 }

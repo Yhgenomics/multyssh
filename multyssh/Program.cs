@@ -22,7 +22,12 @@ namespace multyssh
         {
             ReadConfig();
             CheckCommand();
-            RunCommand();
+            foreach (var client in clients)
+            {
+                RunCommand(client);
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
 
             Console.WriteLine("Finished...");
         }
@@ -63,40 +68,28 @@ namespace multyssh
 
         }
 
-        static void RunCommand()
+        static void RunCommand(ClientData client)
         {
-            foreach (var client in clients)
+
+            IClient cli = new Client2(client.ip, client.username, client.password);
+            cli.Connect();
+
+            Console.WriteLine();
+            Console.WriteLine(client.ip + " Running...");
+
+            foreach (var cmd in command)
             {
-                try
-                {
-                    Client cli = new Client(client.ip, client.username, client.password);
-                    cli.ShowResponse = true;
-                    cli.Connect();
-
-                    Console.WriteLine();
-                    Console.WriteLine(client.ip + " Running...");
-
-                    foreach (var cmd in command)
-                    {
-                        while (!cli.CanSendCommand) Thread.Sleep(1);
-                        cli.SendCommand(cmd);
-                    }
-
-                    while (!cli.EndOfStream) Thread.Sleep(1); 
-
-                    cli.Disconnect();
-
-                    Console.WriteLine();
-                    Console.WriteLine(client.ip + " Finished...");
-                }
-                catch(Exception eee)
-                {
-                    Console.WriteLine(client.ip + " Exception: "+eee.Message);
-                }
-
-                
-
+                cli.WaitForIdle();
+                cli.SendCommand(cmd);
             }
+
+            cli.WaitForIdle();
+
+            cli.Disconnect();
+            cli = null;
+
+            Console.WriteLine();
+            Console.WriteLine(client.ip + " Finished...");
         }
 
         static void ReadConfig()
