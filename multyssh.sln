@@ -5,6 +5,8 @@ VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "multyssh", "multyssh\multyssh.csproj", "{515203F6-B38F-4F49-A8DB-F44FCD52EFED}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "multysshClient", "multysshClient\multysshClient.csproj", "{55EBE1C3-041B-4A58-9004-505512FE1283}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{515203F6-B38F-4F49-A8DB-F44FCD52EFED}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{515203F6-B38F-4F49-A8DB-F44FCD52EFED}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{515203F6-B38F-4F49-A8DB-F44FCD52EFED}.Release|Any CPU.Build.0 = Release|Any CPU
+		{55EBE1C3-041B-4A58-9004-505512FE1283}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{55EBE1C3-041B-4A58-9004-505512FE1283}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{55EBE1C3-041B-4A58-9004-505512FE1283}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{55EBE1C3-041B-4A58-9004-505512FE1283}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

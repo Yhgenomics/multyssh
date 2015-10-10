@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 
@@ -20,6 +22,7 @@ namespace multyssh
 
         static void Main(string[] args)
         {
+            DetectClient();
             ReadConfig();
             CheckCommand();
             foreach (var client in clients)
@@ -31,6 +34,49 @@ namespace multyssh
 
             Console.WriteLine("Finished...");
         }
+
+        private static void DetectClient()
+        {
+            var thr = new Thread(RecvClient);
+            thr.Start();
+
+            for (int i = 0; i < 3; i++)
+            {
+                Console.WriteLine("Detecting will finish in " + (3 - i) + " secounds");
+                Thread.Sleep(1000);
+            }
+
+            thr.Abort();
+        }
+        static void RecvClient()
+        {
+            Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            socket.Bind(new IPEndPoint(IPAddress.Any, 10001));
+            EndPoint iep1 = new IPEndPoint(IPAddress.Broadcast, 10001);
+            socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, 1);
+            byte[] buffer = new byte[1024];
+            while (true)
+            {
+                var count = socket.ReceiveFrom(buffer, ref iep1);
+
+                string msg = Encoding.ASCII.GetString(buffer, 0, count);
+                if (msg == "MultySSH")
+                {
+
+                    ClientData cd = new ClientData();
+                    cd.ip = ((IPEndPoint)iep1).Address.ToString();
+                    cd.username = "root";
+                    cd.password = "YH!@#$%12345";
+
+                    var c = (from j in clients where j.ip == cd.ip select j).FirstOrDefault();
+                    if(c== null)
+                    {
+                        clients.Add(cd);
+                    }
+                }
+            }
+        }
+
         static void CheckCommand()
         {
             if (command.Count > 0)
@@ -40,6 +86,7 @@ namespace multyssh
             Console.WriteLine(">>> !run -- run all the command");
             Console.WriteLine(">>> !del -- del lastest command");
             Console.WriteLine(">>> !list -- list all commands");
+            Console.WriteLine(">>> !clinet -- list all clinet");
 
             while (true)
             {
@@ -58,6 +105,13 @@ namespace multyssh
                     foreach (var item in command)
                     { 
                         Console.WriteLine(">>> "+item);
+                    }
+                }
+                else if (cmd.StartsWith("!client"))
+                {
+                    foreach (var item in clients)
+                    {
+                        Console.WriteLine(">>> " + item.ip);
                     }
                 }
                 else
